@@ -1,0 +1,30 @@
+{
+  "name": "Homelab Control",
+  "short_name": "HLAB",
+  "description": "Real homelab assistant — SSH, metrics, Docker, files, AI",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0c10",
+  "theme_color": "#00d4ff",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["utilities", "developer"],
+  "shortcuts": [
+    { "name": "Monitor", "url": "./index.html#monitor", "description": "System metrics" },
+    { "name": "SSH", "url": "./index.html#ssh", "description": "SSH terminal" },
+    { "name": "Docker", "url": "./index.html#docker", "description": "Docker manager" }
+  ]
+}

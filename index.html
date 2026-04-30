@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#00d4ff">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Homelab">
+<title>Homelab Control</title>
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+/* ── Reset & Base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #08090e;
+  --surface: #0d1017;
+  --card: #111520;
+  --card2: #161c28;
+  --border: #1c2333;
+  --border2: #252f42;
+  --accent: #00d4ff;
+  --accent2: #0099cc;
+  --green: #00f593;
+  --yellow: #ffc840;
+  --red: #ff3d5a;
+  --orange: #ff7a30;
+  --purple: #9d7eff;
+  --text: #dce8f5;
+  --muted: #5a6a82;
+  --dim: #2a3448;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bot: env(safe-area-inset-bottom, 0px);
+  --nav-h: 64px;
+  --header-h: 52px;
+  --mono: 'Space Mono', monospace;
+  --sans: 'DM Sans', sans-serif;
+}
+html, body {
+  height: 100%; overflow: hidden;
+  background: var(--bg); color: var(--text);
+  font-family: var(--sans); font-size: 14px;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+}
+#app { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+
+/* ── Header ── */
+#header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: calc(var(--safe-top) + 10px) 18px 10px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0; z-index: 50;
+  min-height: calc(var(--header-h) + var(--safe-top));
+}
+.logo { display: flex; align-items: center; gap: 9px; font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--accent); letter-spacing: .06em; }
+.logo svg { flex-shrink: 0; }
+.hstatus { display: flex; align-items: center; gap: 10px; }
+.dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.dot.on { background: var(--green); box-shadow: 0 0 8px var(--green); }
+.dot.off { background: var(--dim); }
+.dot.warn { background: var(--yellow); }
+.status-text { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+
+/* ── Pages ── */
+#pages { flex: 1; overflow: hidden; position: relative; }
+.page { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; padding: 16px 14px calc(var(--nav-h) + var(--safe-bot) + 16px); display: none; -webkit-overflow-scrolling: touch; }
+.page.active { display: block; }
+.page::-webkit-scrollbar { display: none; }
+
+/* ── Bottom Nav ── */
+#nav {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex; align-items: stretch;
+  padding-bottom: var(--safe-bot);
+  height: calc(var(--nav-h) + var(--safe-bot));
+  z-index: 100; flex-shrink: 0;
+}
+.nav-btn {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 3px; background: none; border: none; color: var(--muted); cursor: pointer;
+  font-family: var(--sans); font-size: 9px; font-weight: 600; letter-spacing: .05em;
+  text-transform: uppercase; padding: 8px 4px; transition: color .2s;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+}
+.nav-btn .icon { font-size: 22px; line-height: 1; transition: transform .2s; }
+.nav-btn.active { color: var(--accent); }
+.nav-btn.active .icon { transform: scale(1.15); }
+.nav-btn.active::after {
+  content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 32px; height: 2px; background: var(--accent);
+  border-radius: 0 0 3px 3px;
+}
+
+/* ── Cards ── */
+.card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+  padding: 16px; margin-bottom: 12px;
+}
+.card2 { background: var(--card2); border: 1px solid var(--border2); }
+.section-label {
+  font-size: 9px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 10px; font-family: var(--mono);
+}
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 10px 18px; border-radius: 10px; border: none; cursor: pointer;
+  font-family: var(--sans); font-size: 13px; font-weight: 600;
+  transition: opacity .15s, transform .1s; -webkit-tap-highlight-color: transparent;
+}
+.btn:active { transform: scale(.96); opacity: .8; }
+.btn-primary { background: var(--accent); color: #08090e; }
+.btn-danger  { background: var(--red); color: #fff; }
+.btn-success { background: var(--green); color: #08090e; }
+.btn-ghost   { background: var(--border); color: var(--muted); }
+.btn-warn    { background: var(--yellow); color: #08090e; }
+.btn-sm { padding: 6px 12px; font-size: 11px; border-radius: 7px; }
+.btn-full { width: 100%; }
+
+/* ── Inputs ── */
+.input {
+  width: 100%; background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 10px; color: var(--text); font-family: var(--mono); font-size: 13px;
+  padding: 12px 14px; outline: none; transition: border-color .2s;
+  -webkit-appearance: none;
+}
+.input:focus { border-color: var(--accent2); }
+.input-label { font-size: 10px; color: var(--muted); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 5px; }
+.input-group { margin-bottom: 13px; }
+
+/* ── Gauges ── */
+.gauges-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.gauge-card {
+  background: var(--card2); border: 1px solid var(--border2); border-radius: 12px;
+  padding: 14px 12px; display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.gauge-ring { position: relative; }
+.gauge-val { font-family: var(--mono); font-size: 16px; font-weight: 700; }
+.gauge-lbl { font-size: 9px; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; font-weight: 700; }
+
+/* ── Badges ── */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px; border-radius: 6px; font-size: 9px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase; font-family: var(--mono);
+}
+.badge-run { background: rgba(0,245,147,.12); color: var(--green); border: 1px solid rgba(0,245,147,.25); }
+.badge-stop { background: rgba(42,52,72,.5); color: var(--muted); border: 1px solid var(--border); }
+
+/* ── Progress bars ── */
+.progress { height: 5px; background: var(--surface); border-radius: 3px; overflow: hidden; margin-top: 5px; }
+.progress-fill { height: 100%; border-radius: 3px; transition: width .5s ease; }
+
+/* ── Terminal ── */
+#term-output {
+  background: #05060b; border-radius: 10px; padding: 12px;
+  font-family: var(--mono); font-size: 11.5px; line-height: 1.65;
+  color: #c8d8e8; white-space: pre-wrap; word-break: break-all;
+  overflow-y: auto; height: 340px; -webkit-overflow-scrolling: touch;
+}
+#term-input-row {
+  display: flex; align-items: center; gap: 8px; margin-top: 8px;
+  background: #05060b; border-radius: 10px; padding: 10px 12px;
+  border: 1px solid var(--border2);
+}
+#term-prompt { font-family: var(--mono); font-size: 11.5px; color: var(--accent); white-space: nowrap; }
+#term-input {
+  flex: 1; background: none; border: none; outline: none; color: var(--text);
+  font-family: var(--mono); font-size: 11.5px; caret-color: var(--accent);
+  -webkit-appearance: none;
+}
+.quick-cmds { display: flex; gap: 6px; overflow-x: auto; padding: 6px 0; }
+.quick-cmds::-webkit-scrollbar { display: none; }
+.qcmd { flex-shrink: 0; background: var(--border); color: var(--muted); border: none; border-radius: 7px; padding: 6px 11px; font-family: var(--mono); font-size: 10px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.qcmd:active { opacity: .6; }
+
+/* ── File list ── */
+.file-item {
+  display: flex; align-items: center; gap: 10px; padding: 11px 0;
+  border-bottom: 1px solid var(--border); cursor: pointer; active: transform scale(.98);
+  -webkit-tap-highlight-color: transparent;
+}
+.file-item:last-child { border-bottom: none; }
+.file-item:active { opacity: .7; }
+.file-icon { font-size: 20px; flex-shrink: 0; }
+.file-name { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-size { font-family: var(--mono); font-size: 10px; color: var(--muted); flex-shrink: 0; }
+.breadcrumb { display: flex; align-items: center; gap: 2px; overflow-x: auto; padding: 0 0 10px; font-family: var(--mono); font-size: 10px; }
+.breadcrumb::-webkit-scrollbar { display: none; }
+.bc-part { color: var(--muted); cursor: pointer; white-space: nowrap; padding: 3px 5px; border-radius: 5px; }
+.bc-part:active { background: var(--border); }
+.bc-sep { color: var(--dim); }
+
+/* ── Docker container cards ── */
+.container-card {
+  background: var(--card2); border: 1px solid var(--border2); border-radius: 12px;
+  padding: 14px; margin-bottom: 10px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: border-color .2s;
+}
+.container-card.expanded { border-color: var(--accent2); }
+.container-card:active { opacity: .85; }
+.c-name { font-size: 14px; font-weight: 700; color: var(--text); }
+.c-image { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 3px; }
+.c-ports { font-family: var(--mono); font-size: 9px; color: var(--dim); margin-top: 3px; }
+.c-stats { display: flex; gap: 16px; margin-top: 8px; }
+.c-stat { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+.c-stat span { color: var(--accent); }
+.c-actions { display: flex; gap: 6px; margin-top: 10px; }
+.log-box {
+  background: #05060b; border-radius: 8px; padding: 10px; margin-top: 10px;
+  font-family: var(--mono); font-size: 10px; color: var(--muted); line-height: 1.6;
+  max-height: 160px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;
+}
+
+/* ── AI chat ── */
+.chat-msgs { display: flex; flex-direction: column; gap: 10px; min-height: 10px; }
+.msg { max-width: 88%; padding: 10px 13px; font-size: 13px; line-height: 1.65; }
+.msg-user { align-self: flex-end; background: rgba(0,212,255,.12); border: 1px solid rgba(0,212,255,.2); border-radius: 14px 14px 3px 14px; }
+.msg-ai { align-self: flex-start; background: var(--card2); border: 1px solid var(--border2); border-radius: 3px 14px 14px 14px; }
+.msg-label { font-size: 8px; color: var(--accent); letter-spacing: .12em; text-transform: uppercase; font-family: var(--mono); margin-bottom: 5px; font-weight: 700; }
+.msg code { background: rgba(0,212,255,.1); color: var(--accent); padding: 1px 5px; border-radius: 4px; font-family: var(--mono); font-size: 11px; }
+.msg pre { background: #05060b; border-radius: 7px; padding: 10px; margin: 6px 0; font-family: var(--mono); font-size: 10.5px; overflow-x: auto; color: var(--accent); line-height: 1.6; }
+.typing-dots { display: flex; gap: 4px; padding: 4px 0; }
+.typing-dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: tdot 1s ease-in-out infinite; }
+.typing-dots span:nth-child(2) { animation-delay: .18s; }
+.typing-dots span:nth-child(3) { animation-delay: .36s; }
+@keyframes tdot { 0%,100%{opacity:.25;transform:scale(.8)} 50%{opacity:1;transform:scale(1.1)} }
+.ai-input-row { display: flex; gap: 8px; margin-top: 12px; align-items: flex-end; }
+.ai-textarea { flex: 1; background: var(--surface); border: 1px solid var(--border2); border-radius: 12px; color: var(--text); font-family: var(--sans); font-size: 13px; padding: 11px 13px; outline: none; resize: none; min-height: 44px; max-height: 100px; }
+.ai-suggestions { display: flex; gap: 6px; overflow-x: auto; padding: 6px 0 0; }
+.ai-suggestions::-webkit-scrollbar { display: none; }
+.suggestion { flex-shrink: 0; background: var(--border); border: none; color: var(--muted); border-radius: 20px; padding: 6px 12px; font-size: 11px; cursor: pointer; font-family: var(--sans); }
+.suggestion:active { opacity: .6; }
+
+/* ── Settings ── */
+.setting-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.setting-row:last-child { border-bottom: none; }
+.setting-label { font-size: 13px; color: var(--text); }
+.setting-sub { font-size: 11px; color: var(--muted); margin-top: 2px; font-family: var(--mono); }
+
+/* ── Info pills ── */
+.info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.info-pill { background: var(--card2); border: 1px solid var(--border2); border-radius: 10px; padding: 11px 13px; }
+.info-pill-val { font-family: var(--mono); font-size: 15px; font-weight: 700; margin-bottom: 2px; }
+.info-pill-lbl { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; font-weight: 700; }
+
+/* ── Metric row ── */
+.metric-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+.metric-row:last-child { border-bottom: none; }
+.metric-name { flex: 1; font-size: 12px; color: var(--text); font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.metric-val { font-family: var(--mono); font-size: 11px; text-align: right; flex-shrink: 0; }
+
+/* ── Spinner ── */
+.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Error ── */
+.error-box { background: rgba(255,61,90,.1); border: 1px solid rgba(255,61,90,.3); border-radius: 10px; padding: 12px; color: var(--red); font-size: 12px; font-family: var(--mono); margin-bottom: 12px; }
+
+/* ── Empty state ── */
+.empty { text-align: center; padding: 48px 20px; color: var(--muted); }
+.empty .emoji { font-size: 40px; margin-bottom: 10px; }
+.empty p { font-size: 13px; line-height: 1.6; }
+
+/* ── Toast ── */
+#toast {
+  position: fixed; bottom: calc(var(--nav-h) + var(--safe-bot) + 12px); left: 50%;
+  transform: translateX(-50%) translateY(20px); background: var(--card2);
+  border: 1px solid var(--border2); border-radius: 24px; padding: 9px 20px;
+  font-size: 12px; color: var(--text); opacity: 0; transition: opacity .25s, transform .25s;
+  pointer-events: none; white-space: nowrap; z-index: 200; font-family: var(--mono);
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── Sparkline ── */
+.sparkwrap { display: flex; align-items: flex-end; gap: 1px; height: 28px; }
+.sparkbar { flex: 1; background: var(--accent); border-radius: 2px 2px 0 0; min-height: 2px; opacity: .7; transition: height .4s ease; }
+
+/* ── File viewer overlay ── */
+#file-overlay {
+  position: fixed; inset: 0; background: var(--bg); z-index: 200;
+  display: none; flex-direction: column;
+  padding-top: var(--safe-top);
+}
+#file-overlay.open { display: flex; }
+.overlay-header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 16px; display: flex; align-items: center; gap: 12px; }
+.overlay-title { flex: 1; font-family: var(--mono); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--accent); }
+.overlay-body { flex: 1; overflow-y: auto; padding: 16px; -webkit-overflow-scrolling: touch; }
+.file-content-pre { font-family: var(--mono); font-size: 11px; line-height: 1.75; color: var(--text); white-space: pre-wrap; word-break: break-all; background: #05060b; border-radius: 10px; padding: 14px; }
+.file-content-edit { width: 100%; height: calc(100dvh - 120px); background: #05060b; border: 1px solid var(--accent2); border-radius: 10px; color: var(--text); font-family: var(--mono); font-size: 11px; line-height: 1.75; padding: 14px; outline: none; resize: none; }
+
+/* ── Pull-to-refresh hint ── */
+.refresh-hint { text-align: center; font-size: 10px; color: var(--dim); padding: 6px 0 0; font-family: var(--mono); }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Header -->
+  <div id="header">
+    <div class="logo">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+        <rect x="1.5" y="1.5" width="19" height="19" rx="4" stroke="#00d4ff" stroke-width="1.5"/>
+        <rect x="5" y="5" width="5" height="5" rx="1.5" fill="#00d4ff" opacity=".8"/>
+        <rect x="12" y="5" width="5" height="5" rx="1.5" fill="#00d4ff" opacity=".3"/>
+        <rect x="5" y="12" width="5" height="5" rx="1.5" fill="#00d4ff" opacity=".3"/>
+        <rect x="12" y="12" width="5" height="5" rx="1.5" fill="#00d4ff"/>
+      </svg>
+      HOMELAB
+    </div>
+    <div class="hstatus">
+      <div class="dot off" id="hdr-backend-dot"></div>
+      <div class="status-text" id="hdr-backend-txt">offline</div>
+      <div class="dot off" id="hdr-ssh-dot" style="margin-left:6px"></div>
+      <div class="status-text" id="hdr-ssh-txt">no ssh</div>
+    </div>
+  </div>
+
+  <!-- Pages -->
+  <div id="pages">
+
+    <!-- MONITOR -->
+    <div class="page active" id="page-monitor">
+      <div id="monitor-offline" class="empty" style="display:none">
+        <div class="emoji">🔌</div>
+        <p>Backend not connected.<br>Go to Settings to configure.</p>
+      </div>
+      <div id="monitor-content">
+        <div class="section-label">System Resources</div>
+        <div class="gauges-grid" id="gauges-grid">
+          <div class="gauge-card"><div class="gauge-ring"><svg id="g-cpu-svg" width="80" height="68" viewBox="0 0 80 68"></svg></div><div class="gauge-val" id="g-cpu-val" style="color:#00d4ff">—</div><div class="gauge-lbl">CPU</div></div>
+          <div class="gauge-card"><div class="gauge-ring"><svg id="g-mem-svg" width="80" height="68" viewBox="0 0 80 68"></svg></div><div class="gauge-val" id="g-mem-val" style="color:#9d7eff">—</div><div class="gauge-lbl">Memory</div></div>
+          <div class="gauge-card"><div class="gauge-ring"><svg id="g-dsk-svg" width="80" height="68" viewBox="0 0 80 68"></svg></div><div class="gauge-val" id="g-dsk-val" style="color:#ff7a30">—</div><div class="gauge-lbl">Disk</div></div>
+          <div class="gauge-card"><div class="gauge-ring"><svg id="g-tmp-svg" width="80" height="68" viewBox="0 0 80 68"></svg></div><div class="gauge-val" id="g-tmp-val" style="color:#00f593">—</div><div class="gauge-lbl">Temp °C</div></div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <div class="section-label">CPU History</div>
+          <div class="sparkwrap" id="cpu-spark"></div>
+        </div>
+
+        <div class="info-grid" style="margin-top:0">
+          <div class="info-pill"><div class="info-pill-val" id="info-uptime" style="color:var(--green)">—</div><div class="info-pill-lbl">Uptime</div></div>
+          <div class="info-pill"><div class="info-pill-val" id="info-procs" style="color:var(--accent)">—</div><div class="info-pill-lbl">Processes</div></div>
+          <div class="info-pill"><div class="info-pill-val" id="info-load" style="color:var(--yellow);font-size:12px">—</div><div class="info-pill-lbl">Load Avg</div></div>
+          <div class="info-pill"><div class="info-pill-val" id="info-host" style="color:var(--muted);font-size:12px">—</div><div class="info-pill-lbl">Host</div></div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <div class="section-label">Disk</div>
+          <div id="disk-list"></div>
+        </div>
+
+        <div class="card">
+          <div class="section-label">Network</div>
+          <div id="net-list"></div>
+        </div>
+
+        <div class="card">
+          <div class="section-label" style="margin-bottom:0;display:flex;align-items:center;justify-content:space-between">
+            Top Processes
+          </div>
+          <div id="proc-list" style="margin-top:10px"></div>
+        </div>
+        <div class="refresh-hint">Auto-refreshes every 3s</div>
+      </div>
+    </div>
+
+    <!-- SSH -->
+    <div class="page" id="page-ssh">
+      <div id="ssh-connect-form">
+        <div class="card">
+          <div class="section-label">SSH Connection</div>
+          <div class="input-group"><div class="input-label">Host / IP</div><input class="input" id="ssh-host" value="localhost" placeholder="192.168.1.100" autocomplete="off" autocorrect="off" spellcheck="false"></div>
+          <div style="display:grid;grid-template-columns:3fr 1fr;gap:10px">
+            <div class="input-group"><div class="input-label">Username</div><input class="input" id="ssh-user" value="admin" autocomplete="off" autocorrect="off" spellcheck="false"></div>
+            <div class="input-group"><div class="input-label">Port</div><input class="input" id="ssh-port" value="22" type="number"></div>
+          </div>
+          <div class="input-group"><div class="input-label">Password</div><input class="input" id="ssh-pass" type="password" placeholder="or leave blank for key auth"></div>
+          <div id="ssh-err" class="error-box" style="display:none"></div>
+          <button class="btn btn-primary btn-full" id="ssh-connect-btn" onclick="sshConnect()">⚡ Connect</button>
+          <p style="font-size:11px;color:var(--muted);margin-top:12px;line-height:1.6;font-family:var(--mono)">Connects via the backend server. Ensure backend is running and reachable.</p>
+        </div>
+      </div>
+
+      <div id="ssh-terminal" style="display:none">
+        <div class="card" style="padding:10px 12px;margin-bottom:10px;display:flex;align-items:center;gap:10px">
+          <div class="dot on"></div>
+          <div id="ssh-conn-label" style="font-family:var(--mono);font-size:11px;color:var(--green);flex:1"></div>
+          <button class="btn btn-danger btn-sm" onclick="sshDisconnect()">Disconnect</button>
+        </div>
+        <div id="term-output" onclick="document.getElementById('term-input').focus()"></div>
+        <div id="term-input-row">
+          <span id="term-prompt">$&nbsp;</span>
+          <input id="term-input" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="type command…" onkeydown="termKeyDown(event)" oninput="termInput(event)">
+        </div>
+        <div class="quick-cmds">
+          <button class="qcmd" onclick="termSend('ls -la\n')">ls -la</button>
+          <button class="qcmd" onclick="termSend('df -h\n')">df -h</button>
+          <button class="qcmd" onclick="termSend('free -h\n')">free -h</button>
+          <button class="qcmd" onclick="termSend('docker ps\n')">docker ps</button>
+          <button class="qcmd" onclick="termSend('uptime\n')">uptime</button>
+          <button class="qcmd" onclick="termSend('top -bn1 | head -20\n')">top</button>
+          <button class="qcmd" onclick="termSend('journalctl -n 30\n')">journalctl</button>
+          <button class="qcmd" onclick="clearTerm()">clear</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- FILES -->
+    <div class="page" id="page-files">
+      <div id="files-err" class="error-box" style="display:none"></div>
+      <div class="breadcrumb" id="breadcrumb"></div>
+      <div class="card" style="padding:8px 14px">
+        <div id="file-list-inner"></div>
+      </div>
+    </div>
+
+    <!-- DOCKER -->
+    <div class="page" id="page-docker">
+      <div id="docker-err" class="error-box" style="display:none"></div>
+
+      <div class="info-grid" id="docker-info-grid" style="margin-bottom:12px;display:none">
+        <div class="info-pill"><div class="info-pill-val" id="dk-running" style="color:var(--green)">—</div><div class="info-pill-lbl">Running</div></div>
+        <div class="info-pill"><div class="info-pill-val" id="dk-stopped" style="color:var(--muted)">—</div><div class="info-pill-lbl">Stopped</div></div>
+        <div class="info-pill"><div class="info-pill-val" id="dk-images" style="color:var(--accent)">—</div><div class="info-pill-lbl">Images</div></div>
+        <div class="info-pill"><div class="info-pill-val" id="dk-ver" style="color:var(--yellow);font-size:12px">—</div><div class="info-pill-lbl">Docker</div></div>
+      </div>
+
+      <!-- sub-tabs -->
+      <div style="display:flex;gap:6px;margin-bottom:12px">
+        <button class="btn btn-sm" id="dtab-containers" onclick="setDockerTab('containers')" style="background:rgba(0,212,255,.15);color:var(--accent)">Containers</button>
+        <button class="btn btn-sm btn-ghost" id="dtab-images" onclick="setDockerTab('images')">Images</button>
+        <button class="btn btn-sm btn-ghost" onclick="fetchDocker()" style="margin-left:auto">↻</button>
+      </div>
+
+      <div id="docker-containers"></div>
+      <div id="docker-images" style="display:none"></div>
+    </div>
+
+    <!-- AI -->
+    <div class="page" id="page-ai">
+      <div class="card" style="min-height:300px;display:flex;flex-direction:column">
+        <div class="section-label">🤖 AI Homelab Assistant</div>
+        <div class="chat-msgs" id="chat-msgs"></div>
+        <div id="typing-indicator" style="display:none;align-self:flex-start;margin-top:8px">
+          <div class="msg msg-ai"><div class="typing-dots"><span></span><span></span><span></span></div></div>
+        </div>
+      </div>
+      <div class="ai-suggestions">
+        <button class="suggestion" onclick="aiSuggest('Why is CPU high?')">Why is CPU high?</button>
+        <button class="suggestion" onclick="aiSuggest('Optimize memory')">Optimize memory</button>
+        <button class="suggestion" onclick="aiSuggest('Docker security tips')">Docker security</button>
+        <button class="suggestion" onclick="aiSuggest('Set up Nginx reverse proxy')">Nginx proxy</button>
+        <button class="suggestion" onclick="aiSuggest('Explain my disk usage')">Disk usage</button>
+        <button class="suggestion" onclick="aiSuggest('How to set up automated backups?')">Backups</button>
+      </div>
+      <div class="ai-input-row">
+        <textarea class="ai-textarea" id="ai-input" placeholder="Ask about your homelab…" rows="1" onkeydown="aiKeyDown(event)" oninput="autoGrow(this)"></textarea>
+        <button class="btn btn-primary" onclick="aiSend()" style="height:44px;padding:10px 16px">➤</button>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="page" id="page-settings">
+      <div class="card">
+        <div class="section-label">Backend Connection</div>
+        <div class="input-group"><div class="input-label">HTTP API URL</div><input class="input" id="cfg-api" value="http://localhost:3001" autocomplete="off" autocorrect="off" spellcheck="false"></div>
+        <div class="input-group"><div class="input-label">WebSocket URL</div><input class="input" id="cfg-ws" value="ws://localhost:3001" autocomplete="off" autocorrect="off" spellcheck="false"></div>
+        <button class="btn btn-primary btn-full" onclick="saveSettings()">Save & Test</button>
+        <div id="settings-status" style="margin-top:12px;font-size:12px;font-family:var(--mono)"></div>
+      </div>
+      <div class="card">
+        <div class="section-label">Install as Android App</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.8;font-family:var(--mono)">
+          1. Open this page in <b style="color:var(--text)">Chrome for Android</b><br>
+          2. Tap the ⋮ menu → <b style="color:var(--text)">Add to Home screen</b><br>
+          3. Tap <b style="color:var(--text)">Install</b><br>
+          4. Launch from home screen — runs full-screen!
+        </div>
+        <div id="install-btn-wrap" style="margin-top:12px;display:none">
+          <button class="btn btn-success btn-full" id="install-btn" onclick="installPWA()">📲 Install App Now</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="section-label">Quick Start Guide</div>
+        <div style="font-size:11px;color:var(--muted);line-height:1.9;font-family:var(--mono)">
+          <b style="color:var(--accent)">1. Deploy backend</b><br>
+          Copy server.js + package.json to your server<br><br>
+          <b style="color:var(--accent)">2. Install & run</b><br>
+          npm install<br>
+          node server.js<br><br>
+          <b style="color:var(--accent)">3. Open firewall</b><br>
+          sudo ufw allow 3001<br><br>
+          <b style="color:var(--accent)">4. Connect</b><br>
+          Set API URL to http://SERVER_IP:3001
+        </div>
+      </div>
+      <div class="card">
+        <div class="section-label">About</div>
+        <div class="setting-row">
+          <div><div class="setting-label">Version</div></div>
+          <div style="font-family:var(--mono);font-size:12px;color:var(--accent)">1.0.0</div>
+        </div>
+        <div class="setting-row">
+          <div><div class="setting-label">Backend</div><div class="setting-sub" id="about-backend">Not connected</div></div>
+          <div class="dot off" id="about-dot"></div>
+        </div>
+        <div class="setting-row">
+          <div><div class="setting-label">Docker</div><div class="setting-sub" id="about-docker">Unknown</div></div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /pages -->
+
+  <!-- Bottom Nav -->
+  <nav id="nav">
+    <button class="nav-btn active" data-page="monitor" onclick="showPage('monitor')"><span class="icon">📊</span>Monitor</button>
+    <button class="nav-btn" data-page="ssh" onclick="showPage('ssh')"><span class="icon">⚡</span>SSH</button>
+    <button class="nav-btn" data-page="files" onclick="showPage('files')"><span class="icon">📁</span>Files</button>
+    <button class="nav-btn" data-page="docker" onclick="showPage('docker')"><span class="icon">🐳</span>Docker</button>
+    <button class="nav-btn" data-page="ai" onclick="showPage('ai')"><span class="icon">🤖</span>AI</button>
+    <button class="nav-btn" data-page="settings" onclick="showPage('settings')"><span class="icon">⚙️</span>Settings</button>
+  </nav>
+
+  <!-- Toast -->
+  <div id="toast"></div>
+
+  <!-- File overlay -->
+  <div id="file-overlay">
+    <div class="overlay-header">
+      <button class="btn btn-ghost btn-sm" onclick="closeFileOverlay()">← Back</button>
+      <div class="overlay-title" id="overlay-title"></div>
+      <button class="btn btn-sm" id="overlay-edit-btn" onclick="toggleFileEdit()" style="background:rgba(0,212,255,.15);color:var(--accent)">Edit</button>
+    </div>
+    <div class="overlay-body" id="overlay-body"></div>
+    <div id="overlay-save-row" style="display:none;padding:12px 16px;background:var(--surface);border-top:1px solid var(--border)">
+      <button class="btn btn-success btn-full" onclick="saveFile()">💾 Save File</button>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<script>
+'use strict';
+// ─── State ────────────────────────────────────────────────────────────────────
+let API = localStorage.getItem('api') || 'http://localhost:3001';
+let WS_URL = localStorage.getItem('ws') || 'ws://localhost:3001';
+let ws = null;
+let sshConnected = false;
+let sshSessionId = 'sess-' + Date.now();
+let backendOk = false;
+let metrics = null;
+let cpuHistory = [];
+let currentPath = '/';
+let currentFile = null;
+let currentFileContent = null;
+let fileEditMode = false;
+let dockerContainers = [];
+let expandedContainer = null;
+let dockerTab = 'containers';
+let aiMessages = [{ role: 'assistant', content: "Hi! I'm your homelab AI assistant with live server context. Ask me anything about your setup, performance, or how to optimize it." }];
+let installPrompt = null;
+let cmdHistory = [], cmdIdx = -1;
+
+// ─── Utils ────────────────────────────────────────────────────────────────────
+const fmt = (b, d=1) => { if (!b) return '0 B'; const k=1024, u=['B','KB','MB','GB','TB']; const i=Math.floor(Math.log(b)/Math.log(k)); return parseFloat((b/Math.pow(k,i)).toFixed(d))+' '+u[i]; };
+const fmtUptime = s => { const d=Math.floor(s/86400),h=Math.floor((s%86400)/3600),m=Math.floor((s%3600)/60); return [d&&d+'d',h&&h+'h',m+'m'].filter(Boolean).join(' '); };
+const el = id => document.getElementById(id);
+const setText = (id, v) => { const e = el(id); if(e) e.textContent = v; };
+
+function toast(msg, dur=2500) {
+  const t = el('toast'); t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+}
+
+// ─── Page nav ─────────────────────────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  el('page-' + name).classList.add('active');
+  document.querySelector(`.nav-btn[data-page="${name}"]`).classList.add('active');
+  if (name === 'files' && !el('file-list-inner').children.length) loadDir('/');
+  if (name === 'docker') fetchDocker();
+  if (name === 'ai') scrollChat();
+}
+
+// ─── Gauge rendering ──────────────────────────────────────────────────────────
+function drawGauge(svgId, valId, value, color, unit='%') {
+  const svg = el(svgId); if (!svg) return;
+  const pct = Math.min(parseFloat(value)||0, 100);
+  const r=30, cx=40, cy=44, circ=2*Math.PI*r;
+  const gaugeColor = color || (pct>85?'#ff3d5a':pct>65?'#ffc840':'#00d4ff');
+  svg.innerHTML = `
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--border2)" stroke-width="5"
+      stroke-dasharray="${circ*.75} ${circ*.25}" stroke-dashoffset="${circ*.125}" stroke-linecap="round"
+      transform="rotate(-225 ${cx} ${cy})"/>
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${gaugeColor}" stroke-width="5"
+      stroke-dasharray="${circ*.75*(pct/100)} ${circ}" stroke-dashoffset="${circ*.125}"
+      stroke-linecap="round" transform="rotate(-225 ${cx} ${cy})"
+      style="filter:drop-shadow(0 0 4px ${gaugeColor}80);transition:stroke-dasharray .6s ease"/>`;
+  const v = el(valId); if(v) { v.textContent = Math.round(pct)+unit; v.style.color = gaugeColor; }
+}
+
+// ─── Sparkline ────────────────────────────────────────────────────────────────
+function drawSpark(id, data) {
+  const wrap = el(id); if (!wrap) return;
+  const max = Math.max(...data, 1);
+  wrap.innerHTML = data.map(v => {
+    const h = Math.max(2, Math.round((v/max)*28));
+    const color = v>85?'var(--red)':v>65?'var(--yellow)':'var(--accent)';
+    return `<div class="sparkbar" style="height:${h}px;background:${color}"></div>`;
+  }).join('');
+}
+
+// ─── Backend health ───────────────────────────────────────────────────────────
+async function checkHealth() {
+  try {
+    const r = await fetch(`${API}/api/health`, { signal: AbortSignal.timeout(3000) });
+    const d = await r.json();
+    backendOk = true;
+    el('hdr-backend-dot').className = 'dot on';
+    el('hdr-backend-txt').textContent = d.hostname || 'online';
+    el('about-dot').className = 'dot on';
+    el('about-backend').textContent = d.hostname || 'connected';
+    el('about-docker').textContent = d.docker ? '✓ available' : '✗ not available';
+    return d;
+  } catch {
+    backendOk = false;
+    el('hdr-backend-dot').className = 'dot off';
+    el('hdr-backend-txt').textContent = 'offline';
+    el('about-dot').className = 'dot off';
+    el('about-backend').textContent = 'not connected';
+    return null;
+  }
+}
+
+// ─── Metrics ──────────────────────────────────────────────────────────────────
+async function fetchMetrics() {
+  if (!backendOk) { el('monitor-offline').style.display='block'; el('monitor-content').style.display='none'; return; }
+  el('monitor-offline').style.display='none'; el('monitor-content').style.display='block';
+  try {
+    const r = await fetch(`${API}/api/metrics`);
+    metrics = await r.json();
+    const m = metrics;
+
+    drawGauge('g-cpu-svg','g-cpu-val', m.cpu?.usage, null);
+    drawGauge('g-mem-svg','g-mem-val', m.memory?.usedPercent, '#9d7eff');
+    drawGauge('g-dsk-svg','g-dsk-val', m.disk?.[0]?.usePercent, '#ff7a30');
+    if (m.temperature != null) drawGauge('g-tmp-svg','g-tmp-val', m.temperature, m.temperature>75?'#ff3d5a':m.temperature>60?'#ffc840':'#00f593', '°');
+    else el('g-tmp-val').textContent = 'N/A';
+
+    cpuHistory = [...cpuHistory.slice(-29), parseFloat(m.cpu?.usage||0)];
+    drawSpark('cpu-spark', cpuHistory);
+
+    setText('info-uptime', fmtUptime(m.uptime||0));
+    setText('info-procs', m.processes?.total||'—');
+    setText('info-load', (m.cpu?.loadAvg||[]).map(l=>l.toFixed(1)).join(' '));
+    setText('info-host', m.hostname||'—');
+
+    // Disk
+    const diskEl = el('disk-list');
+    diskEl.innerHTML = (m.disk||[]).map(d => `
+      <div style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+          <span style="font-family:var(--mono);color:var(--text)">${d.mount}</span>
+          <span style="color:${parseFloat(d.usePercent)>85?'var(--red)':'var(--yellow)';font-family:var(--mono)">${d.usePercent}% · ${fmt(d.used)}/${fmt(d.size)}</span>
+        </div>
+        <div class="progress"><div class="progress-fill" style="width:${d.usePercent}%;background:${parseFloat(d.usePercent)>85?'var(--red)':'var(--accent)'}"></div></div>
+      </div>`).join('');
+
+    // Network
+    const netEl = el('net-list');
+    netEl.innerHTML = (m.network||[]).map(n => `
+      <div class="metric-row">
+        <div class="metric-name">${n.iface}</div>
+        <div class="metric-val"><span style="color:var(--green)">↓${fmt(n.rxSec)}/s</span> <span style="color:var(--yellow)">↑${fmt(n.txSec)}/s</span></div>
+      </div>`).join('') || '<div style="color:var(--muted);font-size:12px;padding:8px 0">No network data</div>';
+
+    // Processes
+    const procEl = el('proc-list');
+    procEl.innerHTML = (m.processes?.list||[]).map(p => `
+      <div class="metric-row">
+        <div class="metric-name" style="color:var(--text)">${p.name}</div>
+        <div class="metric-val">
+          <span style="color:${parseFloat(p.cpu)>10?'var(--yellow)':'var(--green)'}">${p.cpu}%</span>
+          <span style="color:var(--muted);margin-left:8px">${p.mem}%</span>
+        </div>
+      </div>`).join('');
+
+  } catch(e) { console.error('metrics', e); }
+}
+
+// ─── WebSocket ─────────────────────────────────────────────────────────────────
+function connectWs() {
+  if (ws && ws.readyState < 2) return ws;
+  ws = new WebSocket(WS_URL);
+  ws.onmessage = e => {
+    try {
+      const msg = JSON.parse(e.data);
+      if (msg.type === 'ssh:connected') {
+        sshConnected = true;
+        el('hdr-ssh-dot').className = 'dot on';
+        el('hdr-ssh-txt').textContent = 'SSH';
+        el('ssh-connect-form').style.display = 'none';
+        el('ssh-terminal').style.display = 'block';
+        el('ssh-conn-label').textContent = `${el('ssh-user').value}@${el('ssh-host').value}:${el('ssh-port').value}`;
+        toast('SSH connected ✓');
+      }
+      if (msg.type === 'ssh:data' && msg.id === sshSessionId) {
+        const decoded = atob(msg.data);
+        appendTerm(decoded);
+      }
+      if (msg.type === 'ssh:error') {
+        const errEl = el('ssh-err');
+        errEl.textContent = '✗ ' + msg.message;
+        errEl.style.display = 'block';
+        el('ssh-connect-btn').textContent = '⚡ Connect';
+        el('ssh-connect-btn').disabled = false;
+        toast('SSH error: ' + msg.message);
+      }
+      if (msg.type === 'ssh:closed') {
+        sshConnected = false;
+        el('hdr-ssh-dot').className = 'dot off';
+        el('hdr-ssh-txt').textContent = 'no ssh';
+      }
+    } catch {}
+  };
+  ws.onerror = () => toast('WebSocket error');
+  return ws;
+}
+
+// ─── SSH ──────────────────────────────────────────────────────────────────────
+function sshConnect() {
+  const btn = el('ssh-connect-btn');
+  btn.textContent = 'Connecting…'; btn.disabled = true;
+  el('ssh-err').style.display = 'none';
+  const sock = connectWs();
+  const doConn = () => sock.send(JSON.stringify({
+    type: 'ssh:connect', id: sshSessionId,
+    host: el('ssh-host').value, port: parseInt(el('ssh-port').value)||22,
+    username: el('ssh-user').value, password: el('ssh-pass').value || undefined,
+  }));
+  if (sock.readyState === 1) doConn();
+  else sock.onopen = () => { doConn(); };
+  setTimeout(() => { if (!sshConnected) { btn.textContent='⚡ Connect'; btn.disabled=false; } }, 10000);
+}
+
+function sshDisconnect() {
+  if (ws?.readyState === 1) ws.send(JSON.stringify({ type: 'ssh:disconnect', id: sshSessionId }));
+  sshConnected = false;
+  el('ssh-terminal').style.display = 'none';
+  el('ssh-connect-form').style.display = 'block';
+  el('hdr-ssh-dot').className = 'dot off';
+  el('hdr-ssh-txt').textContent = 'no ssh';
+  el('term-output').textContent = '';
+  el('ssh-connect-btn').textContent = '⚡ Connect';
+  el('ssh-connect-btn').disabled = false;
+}
+
+// ─── Terminal ─────────────────────────────────────────────────────────────────
+let termBuf = '';
+function appendTerm(data) {
+  // Strip ANSI for simple display
+  const clean = data.replace(/\x1b\[[0-9;]*[mGKHFABCDJsu]/g,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+  const out = el('term-output');
+  out.textContent += clean;
+  if (out.textContent.length > 80000) out.textContent = out.textContent.slice(-60000);
+  out.scrollTop = out.scrollHeight;
+}
+
+function clearTerm() { el('term-output').textContent = ''; }
+
+function termSend(data) {
+  if (ws?.readyState === 1) ws.send(JSON.stringify({ type: 'ssh:input', id: sshSessionId, data: btoa(data) }));
+}
+
+let termCurrentInput = '';
+function termInput(e) { /* handled by keydown */ }
+function termKeyDown(e) {
+  if (!sshConnected) return;
+  const key = e.key;
+  if (key === 'Enter') {
+    e.preventDefault();
+    const cmd = e.target.value;
+    cmdHistory.unshift(cmd); cmdIdx = -1;
+    termSend(cmd + '\n');
+    e.target.value = '';
+    return;
+  }
+  if (key === 'ArrowUp') { e.preventDefault(); cmdIdx=Math.min(cmdIdx+1,cmdHistory.length-1); e.target.value=cmdHistory[cmdIdx]||''; return; }
+  if (key === 'ArrowDown') { e.preventDefault(); cmdIdx=Math.max(cmdIdx-1,-1); e.target.value=cmdIdx===-1?'':cmdHistory[cmdIdx]||''; return; }
+  if (key === 'Tab') { e.preventDefault(); termSend('\t'); return; }
+  if (e.ctrlKey) {
+    if(key==='c'){termSend('\x03');e.target.value='';e.preventDefault();}
+    else if(key==='d'){termSend('\x04');e.preventDefault();}
+    else if(key==='l'){clearTerm();termSend('\x0c');e.preventDefault();}
+    else if(key==='u'){termSend('\x15');e.target.value='';e.preventDefault();}
+    return;
+  }
+}
+
+// ─── Files ────────────────────────────────────────────────────────────────────
+async function loadDir(path) {
+  currentPath = path;
+  el('files-err').style.display = 'none';
+  try {
+    const r = await fetch(`${API}/api/files?path=${encodeURIComponent(path)}`);
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    currentPath = d.path;
+    renderBreadcrumb(d.path);
+    renderFileList(d.items, d.parent, d.path);
+  } catch(e) {
+    el('files-err').textContent = '✗ ' + e.message;
+    el('files-err').style.display = 'block';
+  }
+}
+
+function renderBreadcrumb(path) {
+  const parts = path.split('/').filter(Boolean);
+  const bc = el('breadcrumb');
+  let html = `<span class="bc-part" onclick="loadDir('/')">/</span>`;
+  let built = '';
+  parts.forEach((part, i) => {
+    built += '/' + part;
+    const p = built;
+    html += `<span class="bc-sep">/</span><span class="bc-part" onclick="loadDir('${p}')">${part}</span>`;
+  });
+  bc.innerHTML = html;
+}
+
+function renderFileList(items, parent, path) {
+  const el2 = el('file-list-inner');
+  let html = '';
+  if (parent && parent !== path) {
+    html += `<div class="file-item" onclick="loadDir('${parent}')"><span class="file-icon">📁</span><span class="file-name" style="color:var(--muted)">..</span></div>`;
+  }
+  (items||[]).forEach(f => {
+    const icon = f.type==='dir' ? '📁' : getFileIcon(f.name);
+    const color = f.type==='dir' ? 'var(--yellow)' : f.isHidden ? 'var(--muted)' : 'var(--text)';
+    html += `<div class="file-item" onclick="${f.type==='dir'?`loadDir('${f.path}')`:`openFile('${f.path}')`}">
+      <span class="file-icon">${icon}</span>
+      <span class="file-name" style="color:${color}">${f.name}</span>
+      ${f.type==='file'&&f.size?`<span class="file-size">${fmt(f.size)}</span>`:''}
+    </div>`;
+  });
+  el2.innerHTML = html || '<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">Empty directory</div>';
+}
+
+function getFileIcon(name) {
+  const ext = name.split('.').pop().toLowerCase();
+  if (['sh','bash','zsh'].includes(ext)) return '📜';
+  if (['yml','yaml'].includes(ext)) return '⚙️';
+  if (['json'].includes(ext)) return '{}';
+  if (['log'].includes(ext)) return '📋';
+  if (['conf','cfg','ini'].includes(ext)) return '🔧';
+  if (['md','txt'].includes(ext)) return '📝';
+  if (['tar','gz','zip','bz2'].includes(ext)) return '📦';
+  if (['py','js','ts','go','rs'].includes(ext)) return '💻';
+  return '📄';
+}
+
+async function openFile(path) {
+  currentFile = path; fileEditMode = false;
+  el('overlay-title').textContent = path.split('/').pop();
+  el('overlay-edit-btn').textContent = 'Edit';
+  el('overlay-save-row').style.display = 'none';
+  el('overlay-body').innerHTML = '<div style="text-align:center;padding:40px"><div class="spinner"></div></div>';
+  el('file-overlay').classList.add('open');
+  try {
+    const r = await fetch(`${API}/api/files/read?path=${encodeURIComponent(path)}`);
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    currentFileContent = d.content;
+    el('overlay-body').innerHTML = `<pre class="file-content-pre">${escHtml(d.content)}</pre>`;
+  } catch(e) {
+    el('overlay-body').innerHTML = `<div class="error-box">${e.message}</div>`;
+    el('overlay-edit-btn').style.display = 'none';
+  }
+}
+
+function closeFileOverlay() { el('file-overlay').classList.remove('open'); }
+
+function toggleFileEdit() {
+  fileEditMode = !fileEditMode;
+  el('overlay-edit-btn').textContent = fileEditMode ? 'View' : 'Edit';
+  el('overlay-save-row').style.display = fileEditMode ? 'block' : 'none';
+  if (fileEditMode) {
+    el('overlay-body').innerHTML = `<textarea class="file-content-edit" id="file-edit-ta">${escHtml(currentFileContent)}</textarea>`;
+  } else {
+    el('overlay-body').innerHTML = `<pre class="file-content-pre">${escHtml(currentFileContent)}</pre>`;
+  }
+}
+
+async function saveFile() {
+  const ta = el('file-edit-ta'); if (!ta) return;
+  try {
+    const r = await fetch(`${API}/api/files/write`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ path: currentFile, content: ta.value }) });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    currentFileContent = ta.value;
+    toast('File saved ✓');
+    toggleFileEdit();
+  } catch(e) { toast('Save failed: '+e.message); }
+}
+
+function escHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ─── Docker ───────────────────────────────────────────────────────────────────
+async function fetchDocker() {
+  el('docker-err').style.display = 'none';
+  try {
+    const [cr, ir, infoR] = await Promise.all([
+      fetch(`${API}/api/docker/containers`),
+      fetch(`${API}/api/docker/images`),
+      fetch(`${API}/api/docker/info`),
+    ]);
+    if (!cr.ok) { const e=await cr.json(); throw new Error(e.error); }
+    dockerContainers = await cr.json();
+    const images = ir.ok ? await ir.json() : [];
+    if (infoR.ok) {
+      const info = await infoR.json();
+      el('docker-info-grid').style.display = 'grid';
+      setText('dk-running', info.running);
+      setText('dk-stopped', info.stopped);
+      setText('dk-images', info.images);
+      setText('dk-ver', info.version ? 'v'+info.version : '—');
+    }
+    renderContainers();
+    renderImages(images);
+  } catch(e) {
+    el('docker-err').textContent = '✗ ' + e.message;
+    el('docker-err').style.display = 'block';
+  }
+}
+
+function renderContainers() {
+  const wrap = el('docker-containers');
+  if (!dockerContainers.length) { wrap.innerHTML='<div class="empty"><div class="emoji">🐳</div><p>No containers found</p></div>'; return; }
+  wrap.innerHTML = dockerContainers.map(c => `
+    <div class="container-card ${expandedContainer===c.id?'expanded':''}" id="cc-${c.id}">
+      <div onclick="toggleContainer('${c.id}')" style="display:flex;align-items:flex-start;gap:10px">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span class="c-name">${c.name}</span>
+            <span class="badge ${c.status==='running'?'badge-run':'badge-stop'}"><span style="font-size:7px">●</span> ${c.status}</span>
+          </div>
+          <div class="c-image">${c.image}</div>
+          ${c.ports&&c.ports!=='—'?`<div class="c-ports">🔗 ${c.ports}</div>`:''}
+          ${c.status==='running'?`<div class="c-stats"><div class="c-stat">CPU <span>${c.cpu}</span></div><div class="c-stat">MEM <span>${fmt(c.memUsage)}</span></div></div>`:''}
+        </div>
+      </div>
+      <div class="c-actions">
+        ${c.status==='running'
+          ? `<button class="btn btn-warn btn-sm" onclick="dockerAction('${c.id}','restart')">↺ Restart</button>
+             <button class="btn btn-danger btn-sm" onclick="dockerAction('${c.id}','stop')">■ Stop</button>`
+          : `<button class="btn btn-success btn-sm" onclick="dockerAction('${c.id}','start')">▶ Start</button>`
+        }
+        <button class="btn btn-ghost btn-sm" onclick="toggleContainerLogs('${c.id}')">Logs</button>
+      </div>
+      <div class="log-box" id="logs-${c.id}" style="display:none"></div>
+    </div>`).join('');
+}
+
+function toggleContainer(id) {
+  expandedContainer = expandedContainer===id ? null : id;
+  renderContainers();
+}
+
+async function toggleContainerLogs(id) {
+  const box = el('logs-'+id);
+  if (box.style.display === 'none') {
+    box.style.display = 'block';
+    box.textContent = 'Loading…';
+    try {
+      const r = await fetch(`${API}/api/docker/containers/${id}/logs`);
+      const d = await r.json();
+      box.textContent = d.logs || d.error || 'No logs';
+      box.scrollTop = box.scrollHeight;
+    } catch(e) { box.textContent = 'Error: '+e.message; }
+  } else {
+    box.style.display = 'none';
+  }
+}
+
+async function dockerAction(id, action) {
+  toast(`${action}ing container…`);
+  try {
+    await fetch(`${API}/api/docker/containers/${id}/${action}`, {method:'POST'});
+    setTimeout(fetchDocker, 1000);
+    toast(`Container ${action}ped ✓`);
+  } catch(e) { toast('Error: '+e.message); }
+}
+
+function renderImages(images) {
+  const wrap = el('docker-images');
+  wrap.innerHTML = `<div class="card" style="padding:10px 14px">
+    ${images.map(img => img.repoTags.map(tag => `
+      <div class="metric-row">
+        <div class="metric-name" style="color:var(--accent)">${tag}</div>
+        <div class="metric-val" style="color:var(--yellow)">${fmt(img.size)}</div>
+      </div>`).join('')).join('')}
+  </div>`;
+}
+
+function setDockerTab(t) {
+  dockerTab = t;
+  el('docker-containers').style.display = t==='containers'?'block':'none';
+  el('docker-images').style.display = t==='images'?'block':'none';
+  el('dtab-containers').style.background = t==='containers'?'rgba(0,212,255,.15)':'var(--border)';
+  el('dtab-containers').style.color = t==='containers'?'var(--accent)':'var(--muted)';
+  el('dtab-images').style.background = t==='images'?'rgba(0,212,255,.15)':'var(--border)';
+  el('dtab-images').style.color = t==='images'?'var(--accent)':'var(--muted)';
+}
+
+// ─── AI ───────────────────────────────────────────────────────────────────────
+function scrollChat() { setTimeout(() => { const c=el('chat-msgs'); if(c) c.scrollIntoView(false); }, 50); }
+
+function renderChat() {
+  const wrap = el('chat-msgs');
+  wrap.innerHTML = aiMessages.map(m => {
+    const isUser = m.role === 'user';
+    const content = formatAiContent(m.content);
+    return `<div class="msg ${isUser?'msg-user':'msg-ai'}">
+      ${!isUser?'<div class="msg-label">◆ Assistant</div>':''}
+      ${content}
+    </div>`;
+  }).join('');
+  scrollChat();
+}
+
+function formatAiContent(text) {
+  return text
+    .replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre>$2</pre>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br>');
+}
+
+function aiSuggest(q) { el('ai-input').value = q; aiSend(); }
+
+function aiKeyDown(e) { if (e.key==='Enter'&&!e.shiftKey) { e.preventDefault(); aiSend(); } }
+
+function autoGrow(el2) { el2.style.height='auto'; el2.style.height=(el2.scrollHeight)+'px'; }
+
+async function aiSend() {
+  const input = el('ai-input').value.trim(); if (!input) return;
+  el('ai-input').value = ''; el('ai-input').style.height='auto';
+  aiMessages.push({ role:'user', content:input });
+  renderChat();
+  el('typing-indicator').style.display='block'; scrollChat();
+
+  const sysCtx = metrics ? `
+Live server: ${metrics.hostname} (${metrics.distro||metrics.platform})
+CPU: ${metrics.cpu?.usage}% | Load: ${(metrics.cpu?.loadAvg||[]).map(l=>l.toFixed(1)).join(',')}
+Memory: ${fmt(metrics.memory?.used)}/${fmt(metrics.memory?.total)} (${metrics.memory?.usedPercent}%)
+Disk: ${(metrics.disk||[]).map(d=>`${d.mount}:${d.usePercent}%`).join(', ')}
+Uptime: ${fmtUptime(metrics.uptime||0)} | Temp: ${metrics.temperature?metrics.temperature+'°C':'N/A'}
+Docker: ${dockerContainers.filter(c=>c.status==='running').map(c=>c.name).join(', ')||'none running'}` : 'Server metrics not yet available.';
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514', max_tokens:1000,
+        system:`You are an expert homelab assistant. Be concise and practical. Use code blocks for commands.\n\n${sysCtx}`,
+        messages: aiMessages.map(m=>({role:m.role,content:m.content})),
+      }),
+    });
+    const d = await resp.json();
+    aiMessages.push({ role:'assistant', content: d.content?.[0]?.text||'Error.' });
+  } catch { aiMessages.push({ role:'assistant', content:'Connection error.' }); }
+  el('typing-indicator').style.display='none';
+  renderChat();
+}
+
+// ─── Settings ─────────────────────────────────────────────────────────────────
+async function saveSettings() {
+  API = el('cfg-api').value.trim();
+  WS_URL = el('cfg-ws').value.trim();
+  localStorage.setItem('api', API);
+  localStorage.setItem('ws', WS_URL);
+  el('settings-status').textContent = 'Testing…';
+  const h = await checkHealth();
+  if (h) {
+    el('settings-status').style.color = 'var(--green)';
+    el('settings-status').textContent = `✓ Connected to ${h.hostname} · Docker: ${h.docker?'✓':'✗'}`;
+    toast('Connected ✓');
+  } else {
+    el('settings-status').style.color = 'var(--red)';
+    el('settings-status').textContent = '✗ Could not reach backend';
+  }
+}
+
+// ─── PWA Install ──────────────────────────────────────────────────────────────
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault(); installPrompt = e;
+  el('install-btn-wrap').style.display = 'block';
+});
+function installPWA() {
+  if (installPrompt) { installPrompt.prompt(); installPrompt.userChoice.then(r => { if(r.outcome==='accepted') toast('App installed! 🎉'); }); }
+  else toast('Open in Chrome → ⋮ → Add to Home screen');
+}
+window.addEventListener('appinstalled', () => toast('Homelab app installed! 🎉'));
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+el('cfg-api').value = API;
+el('cfg-ws').value = WS_URL;
+
+// Load saved settings
+renderChat();
+
+async function init() {
+  await checkHealth();
+  fetchMetrics();
+  setInterval(fetchMetrics, 3000);
+  setInterval(checkHealth, 30000);
+}
+init();
+
+// Service worker
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+
+// Handle back button for file overlay
+window.addEventListener('popstate', () => { if (el('file-overlay').classList.contains('open')) closeFileOverlay(); });
+document.addEventListener('keydown', e => { if (e.key==='Escape') closeFileOverlay(); });
+</script>
+</body>
+</html>
