@@ -1,4 +1,4 @@
-# 🖥️ HOMELAB.CTRL — Real Backend
+# HOMELAB.CTRL — Real Backend
 
 A real homelab assistant with live SSH terminals, system metrics, file management, and Docker control.
 
