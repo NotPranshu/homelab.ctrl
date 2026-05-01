@@ -1,6 +1,6 @@
-# HOMELAB.CTRL — Real Backend
+# HOMELAB.CTRL
 
-A real homelab assistant with live SSH terminals, system metrics, file management, and Docker control.
+A homelab assistant with live SSH terminals, system metrics, file management, and Docker control.
 
 ## Stack
 
