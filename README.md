@@ -5,11 +5,11 @@ A homelab assistant with live SSH terminals, system metrics, file management, an
 ## Stack
 
 - **Backend**: Node.js + Express + WebSocket
-- **SSH**: `ssh2` — real interactive shell sessions
-- **Metrics**: `systeminformation` — CPU, RAM, disk, network, temperature, processes
-- **Docker**: `dockerode` — real Docker daemon via `/var/run/docker.sock`
-- **Files**: Node.js `fs` — real filesystem read/write
-- **Frontend**: React (use the `.jsx` file in Claude)
+- **SSH**: `ssh2` -> real interactive shell sessions
+- **Metrics**: `systeminformation` —> CPU, RAM, disk, network, temperature, processes
+- **Docker**: `dockerode` —> real Docker daemon via `/var/run/docker.sock`
+- **Files**: Node.js `fs` —> real filesystem read/write
+- **Frontend**: React
 
 ---
 
