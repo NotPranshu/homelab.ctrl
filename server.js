@@ -11,10 +11,51 @@ const os = require('os');
 
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+const API_KEY = process.env.HOMELAB_API_KEY || '';
+const FILE_ROOT = path.resolve(process.env.HOMELAB_FILES_ROOT || os.homedir());
+const ALLOWED_ORIGIN = process.env.HOMELAB_ALLOWED_ORIGIN || '';
+const PORT = process.env.PORT || 3001;
+const HOST = process.env.HOST || '127.0.0.1';
+const wss = new WebSocket.Server({ noServer: true, maxPayload: 64 * 1024 });
 
-app.use(cors());
-app.use(express.json());
+app.disable('x-powered-by');
+app.use(cors({ origin: ALLOWED_ORIGIN || false }));
+app.use(express.json({ limit: '256kb' }));
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Content-Security-Policy', "default-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; connect-src 'self' http: https: ws: wss:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'unsafe-inline'; img-src 'self' data:");
+  next();
+});
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+app.get('/index.html', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+app.get('/manifest.json', (req, res) => res.sendFile(path.join(__dirname, 'manifest.json')));
+app.get('/sw.js', (req, res) => res.sendFile(path.join(__dirname, 'sw.js')));
+
+function isAuthorized(req) {
+  return !API_KEY || req.get('authorization') === `Bearer ${API_KEY}`;
+}
+
+app.use('/api', (req, res, next) => {
+  if (!isAuthorized(req)) return res.status(401).json({ error: 'Unauthorized' });
+  next();
+});
+
+function resolveFilePath(requestedPath) {
+  const candidate = requestedPath === '/' ? FILE_ROOT : path.resolve(String(requestedPath || FILE_ROOT));
+  let existing = candidate;
+  while (!fs.existsSync(existing) && existing !== path.dirname(existing)) existing = path.dirname(existing);
+  const realRoot = fs.realpathSync(FILE_ROOT);
+  const realExisting = fs.realpathSync(existing);
+  const relative = path.relative(realRoot, realExisting);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    const error = new Error('Path is outside the configured files root');
+    error.code = 'ESECURITY';
+    throw error;
+  }
+  return candidate;
+}
 
 // ─── Docker client ────────────────────────────────────────────────────────────
 let docker = null;
@@ -40,6 +81,10 @@ wss.on('connection', (ws) => {
       // ── SSH Connect ──────────────────────────────────────────────────────────
       case 'ssh:connect': {
         const { id, host, port = 22, username, password, privateKey } = msg;
+        if (!id || !host || !username || !Number.isInteger(Number(port)) || Number(port) < 1 || Number(port) > 65535) {
+          ws.send(JSON.stringify({ type: 'ssh:error', id, message: 'Invalid SSH connection details' }));
+          break;
+        }
         sessionId = id;
 
         const conn = new Client();
@@ -175,8 +220,8 @@ app.get('/api/metrics', async (req, res) => {
       .map(p => ({
         pid: p.pid,
         name: p.name,
-        cpu: p.pcpu?.toFixed(1),
-        mem: p.pmem?.toFixed(1),
+        cpu: Number(p.pcpu || 0).toFixed(1),
+        mem: Number(p.pmem || 0).toFixed(1),
         state: p.state,
         user: p.user,
       }));
@@ -235,8 +280,8 @@ app.get('/api/metrics', async (req, res) => {
 
 // ─── File System API ──────────────────────────────────────────────────────────
 app.get('/api/files', (req, res) => {
-  const dirPath = req.query.path || os.homedir();
-  const safePath = path.resolve(dirPath);
+  let safePath;
+  try { safePath = resolveFilePath(req.query.path || '/'); } catch (err) { return res.status(403).json({ error: err.message }); }
 
   try {
     const entries = fs.readdirSync(safePath, { withFileTypes: true });
@@ -270,11 +315,12 @@ app.get('/api/files/read', (req, res) => {
   if (!filePath) return res.status(400).json({ error: 'No path' });
 
   try {
-    const stat = fs.statSync(filePath);
+    const safePath = resolveFilePath(filePath);
+    const stat = fs.statSync(safePath);
     if (stat.size > 5 * 1024 * 1024) {
       return res.status(413).json({ error: 'File too large (>5MB)' });
     }
-    const content = fs.readFileSync(filePath, 'utf8');
+    const content = fs.readFileSync(safePath, 'utf8');
     res.json({ content, size: stat.size, modified: stat.mtime });
   } catch (err) {
     res.status(403).json({ error: err.message });
@@ -285,7 +331,7 @@ app.post('/api/files/write', (req, res) => {
   const { path: filePath, content } = req.body;
   if (!filePath) return res.status(400).json({ error: 'No path' });
   try {
-    fs.writeFileSync(filePath, content, 'utf8');
+    fs.writeFileSync(resolveFilePath(filePath), String(content || ''), 'utf8');
     res.json({ ok: true });
   } catch (err) {
     res.status(403).json({ error: err.message });
@@ -296,11 +342,13 @@ app.delete('/api/files', (req, res) => {
   const filePath = req.query.path;
   if (!filePath) return res.status(400).json({ error: 'No path' });
   try {
-    const stat = fs.statSync(filePath);
+    const safePath = resolveFilePath(filePath);
+    if (safePath === FILE_ROOT) return res.status(403).json({ error: 'Cannot delete files root' });
+    const stat = fs.statSync(safePath);
     if (stat.isDirectory()) {
-      fs.rmdirSync(filePath, { recursive: true });
+      fs.rmSync(safePath, { recursive: true, force: false });
     } else {
-      fs.unlinkSync(filePath);
+      fs.unlinkSync(safePath);
     }
     res.json({ ok: true });
   } catch (err) {
@@ -312,7 +360,7 @@ app.post('/api/files/mkdir', (req, res) => {
   const { path: dirPath } = req.body;
   if (!dirPath) return res.status(400).json({ error: 'No path' });
   try {
-    fs.mkdirSync(dirPath, { recursive: true });
+    fs.mkdirSync(resolveFilePath(dirPath), { recursive: true });
     res.json({ ok: true });
   } catch (err) {
     res.status(403).json({ error: err.message });
@@ -456,13 +504,44 @@ app.get('/api/health', (req, res) => {
     uptime: process.uptime(),
     hostname: os.hostname(),
     platform: os.platform(),
+    authRequired: Boolean(API_KEY),
+    filesRoot: FILE_ROOT,
   });
 });
 
-const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => {
-  console.log(`\n🚀 Homelab backend running on http://localhost:${PORT}`);
-  console.log(`   WebSocket: ws://localhost:${PORT}`);
+// Keep assistant requests on the backend so the browser does not need an API key.
+app.post('/api/assistant', (req, res) => {
+  const question = String(req.body?.question || '').trim();
+  if (!question) return res.status(400).json({ error: 'Question is required' });
+
+  const q = question.toLowerCase();
+  let answer = 'I can help inspect the live server. Open Monitor for current metrics, or use SSH for a command-level investigation.';
+  if (q.includes('cpu')) answer = 'Start with Monitor > Top Processes. If one process is dominating, inspect it in SSH with `ps aux --sort=-%cpu | head -20`. Check load average against your CPU core count before treating a spike as a problem.';
+  else if (q.includes('memory') || q.includes('ram')) answer = 'Check the Memory gauge and swap usage first. In SSH, run `free -h` and `ps aux --sort=-%mem | head -15`. A high cache value is usually reclaimable; sustained swap use is the stronger warning sign.';
+  else if (q.includes('disk')) answer = 'Monitor shows usage by mount. To find the source of growth, run `du -xhd1 / | sort -h` and then inspect the largest directory. Keep a safety margin for Docker layers, logs, and package caches.';
+  else if (q.includes('docker')) answer = 'Use Docker for a quick container overview, then open a container to inspect logs. In SSH, `docker system df` shows reclaimable space and `docker ps --format "table {{.Names}}\\t{{.Status}}"` gives a clean status list.';
+  else if (q.includes('backup')) answer = 'A practical baseline is: define what must be restorable, snapshot application data rather than containers, keep one copy off-host, and schedule a restore test. Start by listing volumes with `docker volume ls`.';
+  res.json({ answer });
+});
+
+server.on('upgrade', (req, socket, head) => {
+  const requestUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  if (requestUrl.pathname !== '/ws' || (API_KEY && requestUrl.searchParams.get('key') !== API_KEY)) {
+    socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+    socket.destroy();
+    return;
+  }
+  wss.handleUpgrade(req, socket, head, ws => wss.emit('connection', ws, req));
+});
+
+if (!API_KEY && !['127.0.0.1', 'localhost', '::1'].includes(HOST)) {
+  throw new Error('HOMELAB_API_KEY is required when HOST is not loopback');
+}
+server.listen(PORT, HOST, () => {
+  console.log(`\n🚀 Homelab backend running on http://${HOST}:${PORT}`);
+  console.log(`   WebSocket: ws://${HOST}:${PORT}/ws`);
+  console.log(`   Auth:      ${API_KEY ? '✓ API key required' : '⚠ disabled (set HOMELAB_API_KEY)'}`);
+  console.log(`   Files:     ${FILE_ROOT}`);
   console.log(`   Docker:    ${docker ? '✓ connected' : '✗ not available'}`);
   console.log(`   Host:      ${os.hostname()}\n`);
 });

@@ -45,9 +45,22 @@ pm2 save && pm2 startup
 
 ### 4. Configure the frontend
 
-In the React app, go to **Settings** and set:
+In the browser app, go to **Settings** and set:
 - **HTTP API URL**: `http://YOUR_SERVER_IP:3001`
 - **WebSocket URL**: `ws://YOUR_SERVER_IP:3001`
+- **API Key**: the value used for `HOMELAB_API_KEY`
+
+For a secure remote deployment, start the backend with an API key and a restricted file root:
+
+```bash
+export HOMELAB_API_KEY='replace-with-a-long-random-secret'
+export HOMELAB_FILES_ROOT=/srv/homelab
+export HOMELAB_ALLOWED_ORIGIN=https://homelab.example.com
+export HOST=0.0.0.0
+node server.js
+```
+
+The server refuses to bind to a non-loopback host unless `HOMELAB_API_KEY` is set. By default it listens only on `127.0.0.1`, limits file operations to the user home directory, and rejects filesystem traversal outside that root.
 
 ---
 
@@ -94,11 +107,9 @@ For key-based auth, paste your private key into the "Private Key" field (or add 
 
 ## Security Notes
 
-⚠️ **This backend has no authentication.** For production use:
+The backend supports bearer API-key authentication for all `/api/*` routes and API-key validation for WebSocket upgrades. It also sends basic security headers, limits JSON request size, restricts CORS to `HOMELAB_ALLOWED_ORIGIN`, and defaults to loopback binding.
 
-1. **Bind to localhost only** and use a reverse proxy (nginx/caddy) with auth
-2. Or add API key middleware to Express
-3. Or use Tailscale/VPN to restrict access
+Keep the app behind HTTPS and a VPN or authenticated reverse proxy when exposing it beyond localhost. Never send SSH passwords or private keys over an unencrypted `http://` or `ws://` connection.
 
 Example nginx config with basic auth:
 ```nginx
