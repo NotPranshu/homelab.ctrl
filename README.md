@@ -15,6 +15,41 @@ A homelab assistant with live SSH terminals, system metrics, file management, an
 
 ## Quick Start
 
+### Docker (Linux server)
+
+Install Docker and Compose on the server, then copy the project directory there:
+
+```bash
+git clone YOUR_REPOSITORY_URL homelab.ctrl
+cd homelab.ctrl
+```
+
+Copy `.env.example` to `.env` and set a long random API key. `HOMELAB_FILES_PATH` controls which host directory the file manager can access:
+
+```dotenv
+cp .env.example .env
+```
+
+Then edit `.env`:
+
+```dotenv
+HOMELAB_API_KEY=replace-with-a-long-random-secret
+HOMELAB_FILES_PATH=/srv/homelab
+HOMELAB_ALLOWED_ORIGIN=http://YOUR_SERVER_IP:3001
+```
+
+Build and start the container:
+
+```bash
+docker compose up -d --build
+docker compose ps
+docker compose logs -f homelab
+```
+
+Open `http://YOUR_SERVER_IP:3001`. In the app settings, use that same address for the HTTP API URL and WebSocket URL, and enter the API key from `.env`.
+
+The Compose configuration mounts the Docker socket so Docker controls work and uses host PID mode so system metrics can see host processes. The socket grants administrative access to the Docker host; protect the API key and keep the service behind a trusted network or reverse proxy.
+
 ### 1. Copy files to your server
 
 ```bash

@@ -1,0 +1,17 @@
+services:
+  homelab:
+    build: .
+    image: homelab.ctrl:latest
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3001
+      HOMELAB_API_KEY: ${HOMELAB_API_KEY:?Set HOMELAB_API_KEY in .env or the shell}
+      HOMELAB_ALLOWED_ORIGIN: ${HOMELAB_ALLOWED_ORIGIN:-}
+      HOMELAB_FILES_ROOT: /host-files
+    volumes:
+      - ${HOMELAB_FILES_PATH:-/}:/host-files:rw
+      - /var/run/docker.sock:/var/run/docker.sock
+    pid: host
